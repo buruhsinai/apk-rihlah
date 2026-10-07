@@ -1,1 +1,60 @@
+name: Bangun APK
 
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "rihlah-perawi-hadits.html"
+      - ".github/workflows/build-apk.yml"
+  workflow_dispatch:
+
+env:
+  APP_NAME: "Rihlah Perawi Hadits"
+  APP_ID: "com.jazmi.rihlah"
+  HTML_FILE: "rihlah-perawi-hadits.html"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ambil kode
+        uses: actions/checkout@v4
+
+      - name: Pasang Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Pasang Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Siapkan proyek Capacitor
+        run: |
+          mkdir -p www
+          cp "$HTML_FILE" www/index.html
+          npm init -y
+          npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6
+          npx cap init "$APP_NAME" "$APP_ID" --web-dir=www
+          npx cap add android
+
+      - name: Sinkronkan HTML ke Android
+        run: npx cap sync android
+
+      - name: Bangun APK (debug)
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Ganti nama APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk rihlah-perawi-hadits.apk
+
+      - name: Unggah APK sebagai artefak
+        uses: actions/upload-artifact@v4
+        with:
+          name: rihlah-perawi-hadits-apk
+          path: rihlah-perawi-hadits.apk
+          retention-days: 30
